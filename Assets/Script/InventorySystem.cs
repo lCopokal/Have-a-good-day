@@ -7,7 +7,7 @@ public class InventorySlot
     public ItemData item;
     public int quantity;
 
-    public InventorySlot(ItemData item, int quantity)
+    public InventorySlot(ItemData item = null, int quantity = 0)
     {
         this.item = item;
         this.quantity = quantity;
@@ -27,9 +27,12 @@ public class InventorySlot
 
 public class InventorySystem : MonoBehaviour
 {
+    // === ОБЩИЙ ФЛАГ, ЧТОБЫ ДРУГИЕ СКРИПТЫ ЗНАЛИ, ОТКРЫТ ЛИ ИНВЕНТАРЬ ===
+    public static bool IsOpen { get; private set; }
+
     [Header("Inventory Settings")]
     [SerializeField] private int inventorySize = 20;
-    [SerializeField] public float maxWeight = 50f; // public для доступа
+    [SerializeField] public float maxWeight = 50f;
 
     private List<InventorySlot> slots = new List<InventorySlot>();
     private float currentWeight = 0f;
@@ -45,51 +48,47 @@ public class InventorySystem : MonoBehaviour
 
     void Start()
     {
-        // Инициализируем слоты
+        // создаём пустые слоты
         for (int i = 0; i < inventorySize; i++)
-        {
-            slots.Add(new InventorySlot(null, 0));
-        }
+            slots.Add(new InventorySlot());
 
-        // Создаём UI слоты
         CreateInventoryUI();
 
-        // Скрываем инвентарь при старте
         if (inventoryUI != null)
-        {
             inventoryUI.SetActive(false);
-        }
+
+        // курсор по умолчанию спрятан
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     void Update()
     {
-        // Открытие/закрытие инвентаря на Tab или I
+        // открыть/закрыть на Tab или I
         if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.I))
         {
             ToggleInventory();
         }
 
-        // Использование выбранного предмета на E (только когда инвентарь открыт)
+        // использовать выбранный слот (E) когда инвентарь открыт
         if (isInventoryOpen && Input.GetKeyDown(KeyCode.E))
         {
             if (selectedSlotIndex >= 0 && selectedSlotIndex < slots.Count)
-            {
                 UseItem(selectedSlotIndex);
-            }
         }
 
-        // Быстрое использование предметов (1-9) когда инвентарь закрыт
+        // быстрые слоты (1–9) только когда инвентарь закрыт
         if (!isInventoryOpen)
         {
             for (int i = 0; i < 9 && i < slots.Count; i++)
             {
                 if (Input.GetKeyDown(KeyCode.Alpha1 + i))
-                {
                     UseItem(i);
-                }
             }
         }
     }
+
+    // ---------- UI ----------
 
     void CreateInventoryUI()
     {
@@ -99,7 +98,6 @@ public class InventorySystem : MonoBehaviour
             return;
         }
 
-        // Создаём UI для каждого слота
         for (int i = 0; i < inventorySize; i++)
         {
             GameObject slotObj = Instantiate(slotPrefab, slotsContainer);
@@ -116,103 +114,100 @@ public class InventorySystem : MonoBehaviour
         UpdateInventoryUI();
     }
 
+    void UpdateInventoryUI()
+    {
+        for (int i = 0; i < slotUIElements.Count && i < slots.Count; i++)
+        {
+            slotUIElements[i].UpdateSlot(slots[i]);
+        }
+    }
+
+    // ---------- ОТКРЫТИЕ / ЗАКРЫТИЕ ----------
+
     public void ToggleInventory()
     {
         isInventoryOpen = !isInventoryOpen;
+        IsOpen = isInventoryOpen; // статический флаг для других скриптов
 
         if (inventoryUI != null)
-        {
             inventoryUI.SetActive(isInventoryOpen);
-        }
 
-        // Управление курсором
         if (isInventoryOpen)
         {
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
-
-            // Отключаем FPS контроллер
-            FPSController fps = GetComponent<FPSController>();
-            if (fps != null) fps.enabled = false;
         }
         else
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
 
-            // Включаем FPS контроллер
-            FPSController fps = GetComponent<FPSController>();
-            if (fps != null) fps.enabled = true;
+            // сбрасываем выделение слота при закрытии (по желанию)
+            if (selectedSlotIndex >= 0 && selectedSlotIndex < slotUIElements.Count)
+                slotUIElements[selectedSlotIndex].SetSelected(false);
+
+            selectedSlotIndex = -1;
         }
 
         UpdateInventoryUI();
     }
 
+    // ---------- РАБОТА С ПРЕДМЕТАМИ ----------
+
     public bool AddItem(ItemData item, int quantity = 1)
     {
-        if (item == null) return false;
+        if (item == null || quantity <= 0) return false;
 
-        // Проверяем вес
         float totalWeight = item.weight * quantity;
         if (currentWeight + totalWeight > maxWeight)
         {
-            Debug.Log("Инвентарь переполнен! Слишком тяжело.");
+            Debug.Log("Инвентарь переполнен по весу");
             return false;
         }
 
-        // Если предмет складываемый - ищем существующий стак
+        // если стакается – сначала дополняем существующие стаки
         if (item.isStackable)
         {
-            for (int i = 0; i < slots.Count; i++)
+            for (int i = 0; i < slots.Count && quantity > 0; i++)
             {
-                if (!slots[i].IsEmpty() && slots[i].item == item)
+                if (!slots[i].IsEmpty() && slots[i].item == item &&
+                    slots[i].quantity < item.maxStackSize)
                 {
-                    // Проверяем, не превысит ли количество максимум
                     int canAdd = Mathf.Min(quantity, item.maxStackSize - slots[i].quantity);
-
-                    if (canAdd > 0)
-                    {
-                        slots[i].quantity += canAdd;
-                        currentWeight += item.weight * canAdd;
-                        quantity -= canAdd;
-
-                        if (quantity <= 0)
-                        {
-                            UpdateInventoryUI();
-                            Debug.Log($"Добавлено: {item.itemName} x{canAdd}");
-                            return true;
-                        }
-                    }
+                    slots[i].quantity += canAdd;
+                    quantity -= canAdd;
+                    currentWeight += item.weight * canAdd;
                 }
             }
         }
 
-        // Если остались предметы или предмет не складываемый - ищем пустой слот
+        // остаток или нестакаемый – в пустые слоты
         while (quantity > 0)
         {
             int emptySlot = FindEmptySlot();
             if (emptySlot == -1)
             {
-                Debug.Log("Нет свободных слотов!");
+                Debug.Log("Нет свободных слотов");
+                UpdateInventoryUI();
                 return false;
             }
 
             int addAmount = item.isStackable ? Mathf.Min(quantity, item.maxStackSize) : 1;
-
             slots[emptySlot].item = item;
             slots[emptySlot].quantity = addAmount;
-            currentWeight += item.weight * addAmount;
             quantity -= addAmount;
+            currentWeight += item.weight * addAmount;
         }
 
         UpdateInventoryUI();
-        Debug.Log($"Добавлено: {item.itemName}");
         return true;
     }
 
     public bool RemoveItem(ItemData item, int quantity = 1)
     {
-        for (int i = 0; i < slots.Count; i++)
+        if (item == null || quantity <= 0) return false;
+
+        for (int i = 0; i < slots.Count && quantity > 0; i++)
         {
             if (!slots[i].IsEmpty() && slots[i].item == item)
             {
@@ -222,20 +217,12 @@ public class InventorySystem : MonoBehaviour
                 quantity -= removeAmount;
 
                 if (slots[i].quantity <= 0)
-                {
                     slots[i].Clear();
-                }
-
-                if (quantity <= 0)
-                {
-                    UpdateInventoryUI();
-                    return true;
-                }
             }
         }
 
         UpdateInventoryUI();
-        return false;
+        return quantity <= 0;
     }
 
     public void UseItem(int slotIndex)
@@ -245,17 +232,14 @@ public class InventorySystem : MonoBehaviour
         InventorySlot slot = slots[slotIndex];
         if (slot.IsEmpty()) return;
 
-        // Используем предмет
+        // применяем эффект
         slot.item.Use(gameObject);
 
-        // Уменьшаем количество
         slot.quantity--;
         currentWeight -= slot.item.weight;
 
         if (slot.quantity <= 0)
-        {
             slot.Clear();
-        }
 
         UpdateInventoryUI();
     }
@@ -269,31 +253,20 @@ public class InventorySystem : MonoBehaviour
 
         ItemData itemToDrop = slot.item;
 
-        // Уменьшаем количество на 1
         slot.quantity--;
         currentWeight -= slot.item.weight;
 
-        // Если количество стало 0 - очищаем слот
         if (slot.quantity <= 0)
-        {
             slot.Clear();
-        }
 
         UpdateInventoryUI();
 
-        // Создаём ОДИН предмет в мире
         if (itemToDrop.worldPrefab != null)
         {
-            Vector3 dropPosition = transform.position + transform.forward * 2f + Vector3.up * 1f;
+            Vector3 dropPos = transform.position + transform.forward * 2f + Vector3.up;
+            GameObject dropped = Instantiate(itemToDrop.worldPrefab, dropPos, Random.rotation);
 
-            GameObject droppedItem = Instantiate(
-                itemToDrop.worldPrefab,
-                dropPosition,
-                Random.rotation
-            );
-
-            // Добавляем силу броска
-            Rigidbody rb = droppedItem.GetComponent<Rigidbody>();
+            Rigidbody rb = dropped.GetComponent<Rigidbody>();
             if (rb != null)
             {
                 Vector3 force = (transform.forward + Vector3.up * 0.3f) * 3f;
@@ -301,7 +274,7 @@ public class InventorySystem : MonoBehaviour
             }
         }
 
-        Debug.Log($"Выброшен 1 предмет: {itemToDrop.itemName}");
+        Debug.Log($"Выброшен: {itemToDrop.itemName}");
     }
 
     public void SwapSlots(int slotA, int slotB)
@@ -310,7 +283,6 @@ public class InventorySystem : MonoBehaviour
         if (slotB < 0 || slotB >= slots.Count) return;
         if (slotA == slotB) return;
 
-        // Меняем содержимое слотов местами
         InventorySlot temp = new InventorySlot(slots[slotA].item, slots[slotA].quantity);
 
         slots[slotA].item = slots[slotB].item;
@@ -320,7 +292,6 @@ public class InventorySystem : MonoBehaviour
         slots[slotB].quantity = temp.quantity;
 
         UpdateInventoryUI();
-        Debug.Log($"Предметы поменяны местами: слот {slotA} <-> слот {slotB}");
     }
 
     public void SelectSlot(int index)
@@ -328,28 +299,21 @@ public class InventorySystem : MonoBehaviour
         if (index < 0 || index >= slots.Count) return;
         if (slots[index].IsEmpty()) return;
 
-        // Снимаем выделение с предыдущего слота
+        // снять выделение
         if (selectedSlotIndex >= 0 && selectedSlotIndex < slotUIElements.Count)
-        {
             slotUIElements[selectedSlotIndex].SetSelected(false);
-        }
 
-        // Если кликнули на уже выбранный слот - снимаем выделение
         if (selectedSlotIndex == index)
         {
+            // повторный клик — снимаем выделение
             selectedSlotIndex = -1;
         }
         else
         {
-            // Выбираем новый слот
             selectedSlotIndex = index;
             if (selectedSlotIndex < slotUIElements.Count)
-            {
                 slotUIElements[selectedSlotIndex].SetSelected(true);
-            }
         }
-
-        Debug.Log(selectedSlotIndex >= 0 ? $"Выбран слот {selectedSlotIndex}" : "Выделение снято");
     }
 
     int FindEmptySlot()
@@ -362,15 +326,8 @@ public class InventorySystem : MonoBehaviour
         return -1;
     }
 
-    void UpdateInventoryUI()
-    {
-        for (int i = 0; i < slotUIElements.Count && i < slots.Count; i++)
-        {
-            slotUIElements[i].UpdateSlot(slots[i]);
-        }
-    }
+    // ---------- ГЕТТЕРЫ ----------
 
-    // Геттеры
     public InventorySlot GetSlot(int index)
     {
         if (index >= 0 && index < slots.Count)
@@ -384,24 +341,16 @@ public class InventorySystem : MonoBehaviour
         foreach (var slot in slots)
         {
             if (!slot.IsEmpty() && slot.item == item)
-            {
                 count += slot.quantity;
-            }
         }
         return count;
     }
 
-    public float GetCurrentWeight() { return currentWeight; }
-    public float GetMaxWeight() { return maxWeight; }
-    public bool IsInventoryOpen() { return isInventoryOpen; }
+    public float GetCurrentWeight() => currentWeight;
+    public float GetMaxWeight() => maxWeight;
+    public bool IsInventoryOpenInstance() => isInventoryOpen; // если где-то используется старый метод
 
-    public bool HasItem(ItemData item)
-    {
-        return GetItemCount(item) > 0;
-    }
+    public bool HasItem(ItemData item) => GetItemCount(item) > 0;
 
-    public List<InventorySlot> GetInventorySlots()
-    {
-        return slots;
-    }
+    public List<InventorySlot> GetInventorySlots() => slots;
 }

@@ -1,5 +1,6 @@
 using UnityEngine;
 
+[RequireComponent(typeof(CharacterController))]
 public class FPSController : MonoBehaviour
 {
     [Header("Movement Settings")]
@@ -19,16 +20,16 @@ public class FPSController : MonoBehaviour
 
     private CharacterController controller;
     private Camera playerCamera;
-    private Vector3 velocity;
-    private bool isGrounded;
+
     private float xRotation = 0f;
+    private float verticalVelocity = 0f;
+    private bool isGrounded = false;
 
     void Start()
     {
         controller = GetComponent<CharacterController>();
         playerCamera = GetComponentInChildren<Camera>();
 
-        // Блокируем и скрываем курсор
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -36,65 +37,67 @@ public class FPSController : MonoBehaviour
     void Update()
     {
         HandleMovement();
-        HandleMouseLook();
-        HandleJump();
+
+        // Вращаем камеру только когда инвентарь закрыт
+        if (!InventorySystem.IsOpen)
+        {
+            HandleMouseLook();
+        }
     }
 
-    void HandleMovement()
+    private void HandleMovement()
     {
-        // Проверка на земле ли персонаж
-        isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
-
-        if (isGrounded && velocity.y < 0)
+        // Проверка земли
+        if (groundCheck != null)
         {
-            velocity.y = -2f;
+            isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
+        }
+        else
+        {
+            isGrounded = controller.isGrounded;
         }
 
-        // Получаем ввод
+        if (isGrounded && verticalVelocity < 0f)
+        {
+            verticalVelocity = -2f; // прижимаем к земле
+        }
+
+        // Ввод по осям
         float x = Input.GetAxis("Horizontal");
         float z = Input.GetAxis("Vertical");
 
-        // Определяем скорость (бег или ходьба)
+        // Ходьба / спринт
         float currentSpeed = Input.GetKey(KeyCode.LeftShift) ? sprintSpeed : walkSpeed;
 
-        // Движение относительно направления камеры
         Vector3 move = transform.right * x + transform.forward * z;
         controller.Move(move * currentSpeed * Time.deltaTime);
 
-        // Применяем гравитацию
-        velocity.y += gravity * Time.deltaTime;
-        controller.Move(velocity * Time.deltaTime);
+        // Прыжок
+        if (isGrounded && Input.GetButtonDown("Jump"))
+        {
+            verticalVelocity = Mathf.Sqrt(jumpForce * -2f * gravity);
+        }
+
+        // Гравитация
+        verticalVelocity += gravity * Time.deltaTime;
+        controller.Move(new Vector3(0f, verticalVelocity, 0f) * Time.deltaTime);
     }
 
-    void HandleMouseLook()
+    private void HandleMouseLook()
     {
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
 
-        // Вращение камеры по вертикали
+        // Вверх/вниз – крутим камеру
         xRotation -= mouseY;
         xRotation = Mathf.Clamp(xRotation, -maxLookAngle, maxLookAngle);
-        playerCamera.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
 
-        // Вращение персонажа по горизонтали
+        if (playerCamera != null)
+        {
+            playerCamera.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        }
+
+        // Влево/вправо – крутим персонажа
         transform.Rotate(Vector3.up * mouseX);
-    }
-
-    void HandleJump()
-    {
-        if (Input.GetButtonDown("Jump") && isGrounded)
-        {
-            velocity.y = Mathf.Sqrt(jumpForce * -2f * gravity);
-        }
-    }
-
-    // Освобождение курсора при нажатии Escape
-    void OnApplicationFocus(bool hasFocus)
-    {
-        if (hasFocus)
-        {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
-        }
     }
 }
