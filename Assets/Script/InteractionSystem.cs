@@ -1,14 +1,12 @@
 using UnityEngine;
-using TMPro; // Добавляем поддержку TextMeshPro
+using TMPro;
 
-// Интерфейс для всех интерактивных объектов
 public interface IInteractable
 {
-    string GetInteractPrompt(); // Текст подсказки ("Нажмите E чтобы открыть")
-    void Interact(); // Действие при взаимодействии
+    string GetInteractPrompt();
+    void Interact();
 }
 
-// Система взаимодействия для игрока
 public class InteractionSystem : MonoBehaviour
 {
     [Header("Raycast Settings")]
@@ -17,30 +15,83 @@ public class InteractionSystem : MonoBehaviour
 
     [Header("UI")]
     [SerializeField] private GameObject interactionPromptUI;
-    [SerializeField] private TMP_Text promptText; // Изменено на TextMeshPro
+    [SerializeField] private TMP_Text promptText;
+
+    [Header("Chest Pickup")]
+    [SerializeField] private float chestPickupHoldTime = 1.0f; // сколько держать E чтобы поднять сундук
 
     private Camera playerCamera;
     private IInteractable currentInteractable;
+    private InventorySystem inventory;
+
+    // для удержания E на сундуке
+    private float holdTimer = 0f;
+    private bool chestPickupTriggered = false;
 
     void Start()
     {
         playerCamera = GetComponentInChildren<Camera>();
+        inventory = GetComponent<InventorySystem>();
 
-        // Оставляем UI включённым, но делаем текст пустым
         if (promptText != null)
-        {
             promptText.text = "";
-        }
     }
 
     void Update()
     {
         CheckForInteractable();
+        HandleInteractionInput();
+    }
 
-        // Нажатие E для взаимодействия
-        if (Input.GetKeyDown(KeyCode.E) && currentInteractable != null)
+    void HandleInteractionInput()
+    {
+        if (currentInteractable == null)
         {
-            currentInteractable.Interact();
+            holdTimer = 0f;
+            chestPickupTriggered = false;
+            return;
+        }
+
+        ChestInventory chest = currentInteractable as ChestInventory;
+
+        // особый режим для сундуков
+        if (chest != null && chest.CanBePickedUp && inventory != null)
+        {
+            if (Input.GetKey(KeyCode.E))
+            {
+                holdTimer += Time.deltaTime;
+
+                if (!chestPickupTriggered && holdTimer >= chestPickupHoldTime)
+                {
+                    chestPickupTriggered = true;
+                    chest.PickupChest(inventory);
+                    // сундук мог уничтожиться — сбрасываем ссылку
+                    SetCurrentInteractable(null);
+                }
+            }
+
+            if (Input.GetKeyUp(KeyCode.E))
+            {
+                if (!chestPickupTriggered)
+                {
+                    // короткое нажатие — открыть сундук
+                    chest.Interact();
+                }
+
+                holdTimer = 0f;
+                chestPickupTriggered = false;
+            }
+        }
+        else
+        {
+            // обычные объекты (двери и т.п.) — по нажатию E
+            holdTimer = 0f;
+            chestPickupTriggered = false;
+
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                currentInteractable.Interact();
+            }
         }
     }
 
@@ -49,10 +100,8 @@ public class InteractionSystem : MonoBehaviour
         Ray ray = new Ray(playerCamera.transform.position, playerCamera.transform.forward);
         RaycastHit hit;
 
-        // Проверяем луч от камеры
         if (Physics.Raycast(ray, out hit, interactionDistance, interactableLayer))
         {
-            // Ищем IInteractable на объекте или его родителях
             IInteractable interactable = hit.collider.GetComponentInParent<IInteractable>();
 
             if (interactable != null)
@@ -62,7 +111,6 @@ public class InteractionSystem : MonoBehaviour
             }
         }
 
-        // Если ничего не нашли - убираем текущий объект
         SetCurrentInteractable(null);
     }
 
@@ -73,17 +121,12 @@ public class InteractionSystem : MonoBehaviour
         if (promptText != null)
         {
             if (currentInteractable != null)
-            {
                 promptText.text = currentInteractable.GetInteractPrompt();
-            }
             else
-            {
-                promptText.text = ""; // Очищаем текст вместо выключения UI
-            }
+                promptText.text = "";
         }
     }
 
-    // Визуализация луча взаимодействия в редакторе
     void OnDrawGizmos()
     {
         if (playerCamera != null)
