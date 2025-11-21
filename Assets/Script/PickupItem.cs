@@ -33,8 +33,29 @@ public class PickupItem : MonoBehaviour, IInteractable
 
     public void Interact()
     {
-        // ���������� �������� ��������������
-        // ��� ������ ����� � ItemPickupSystem
+        if (isPickedUp)
+        {
+            return;
+        }
+
+        InventorySystem inventory = FindObjectOfType<InventorySystem>();
+        if (inventory == null)
+        {
+            Debug.LogWarning("InventorySystem  !");
+            return;
+        }
+
+        if (itemData == null)
+        {
+            Debug.LogWarning("ItemData   !");
+            return;
+        }
+
+        if (inventory.AddItem(itemData, quantity))
+        {
+            Debug.Log($"  : {itemData.itemName} x{quantity}");
+            Destroy(gameObject);
+        }
     }
 
     public void OnPickup()
@@ -84,7 +105,7 @@ public class PickupItem : MonoBehaviour, IInteractable
         if (!isPickedUp && rb != null) // ������ ���� ������� �� �������� �����
         {
             // ��������� ��� ������� ����� �� ���������
-            if (rb.linearVelocity.magnitude < 0.1f)
+            if (rb.velocity.magnitude < 0.1f)
             {
                 rb.isKinematic = true;
                 rb.useGravity = false;
