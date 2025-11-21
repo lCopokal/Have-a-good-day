@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27505c7cadd1cc34180f114073d9c8ca, type: 3}
+  m_Name: StorageBox_Small_Item
+  m_EditorClassIdentifier: 
+  itemName: "\u0421\u0422\u0410\u0420\u042B\u0419 \u0421\u0423\u041D\u0414\u0423\u041A"
+  description: "\u041E\u043F\u0438\u0441\u0430\u043D\u0438\u0435 \u043F\u0440\u0435\u0434\u043C\u0435\u0442\u0430"
+  icon: {fileID: 0}
+  worldPrefab: {fileID: 5330877470784513116, guid: 5230ecf929cea2140a079ca16005c3bb, type: 3}
+  itemType: 0
+  isStackable: 1
+  maxStackSize: 10
+  weight: 0.5
+  boxPrefab: {fileID: 0}
+  storageSlots: 10
+  maxStorageWeight: 0
+  placementDistance: 3
+  placementHeight: 0
+  canPlaceOnWalls: 0
+  validPlacementColor: {r: 0, g: 1, b: 0, a: 0.5}
+  invalidPlacementColor: {r: 1, g: 0, b: 0, a: 0.5}
