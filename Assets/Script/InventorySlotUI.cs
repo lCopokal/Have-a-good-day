@@ -1,4 +1,4 @@
-using UnityEngine;
+п»їusing UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using TMPro;
@@ -25,7 +25,7 @@ public class InventorySlotUI : MonoBehaviour,
     private InventorySlot currentSlot;
     private bool isSelected = false;
 
-    // перетаскивание
+    // Drag & Drop
     private static InventorySlotUI draggedSlot;
     private static GameObject draggedIcon;
     private CanvasGroup canvasGroup;
@@ -51,12 +51,14 @@ public class InventorySlotUI : MonoBehaviour,
     {
         currentSlot = slot;
 
+        // РџСѓСЃС‚РѕР№ СЃР»РѕС‚
         if (slot == null || slot.IsEmpty())
         {
             if (itemIcon != null)
             {
                 itemIcon.enabled = false;
                 itemIcon.sprite = null;
+                itemIcon.rectTransform.localEulerAngles = Vector3.zero;
             }
 
             if (quantityText != null)
@@ -69,13 +71,14 @@ public class InventorySlotUI : MonoBehaviour,
             return;
         }
 
-        // Многоклеточный предмет, но не корневой слот — показываем только фон
+        // РҐРІРѕСЃС‚ РјРЅРѕРіРѕРєР»РµС‚РѕС‡РЅРѕРіРѕ РїСЂРµРґРјРµС‚Р° вЂ“ Р±РµР· РёРєРѕРЅРєРё, С‚РѕР»СЊРєРѕ С„РѕРЅ/РїРѕРґСЃРІРµС‚РєР°
         if (slot.isPartOfComposite && !slot.isRoot)
         {
             if (itemIcon != null)
             {
                 itemIcon.enabled = false;
                 itemIcon.sprite = null;
+                itemIcon.rectTransform.localEulerAngles = Vector3.zero;
             }
 
             if (quantityText != null)
@@ -87,17 +90,56 @@ public class InventorySlotUI : MonoBehaviour,
             return;
         }
 
-        // Обычный предмет или корень многоклеточного
+        // РљРѕСЂРµРЅСЊ РјРЅРѕРіРѕРєР»РµС‚РѕС‡РЅРѕРіРѕ РёР»Рё РѕР±С‹С‡РЅС‹Р№ 1x1
         if (itemIcon != null)
         {
             itemIcon.enabled = true;
-            itemIcon.sprite = slot.item.icon;
+
+            if (slot.item != null)
+                itemIcon.sprite = slot.item.icon;
+
             itemIcon.color = Color.white;
+
+            RectTransform slotRect = transform as RectTransform;
+            RectTransform iconRect = itemIcon.rectTransform;
+
+            // СЂР°Р·РјРµСЂ РѕРґРЅРѕР№ РєР»РµС‚РєРё
+            Vector2 cellSize = slotRect.rect.size;
+
+            int wSlots = 1;
+            int hSlots = 1;
+            bool rotated = false;
+
+            // С‚РѕР»СЊРєРѕ РєРѕСЂРµРЅСЊ РјРЅРѕРіРѕРєР»РµС‚РѕС‡РЅРѕРіРѕ РёСЃРїРѕР»СЊР·СѓРµС‚ width/height Рё РїРѕРІРѕСЂРѕС‚
+            if (slot.isRoot && slot.item != null)
+            {
+                int baseW = Mathf.Max(1, slot.item.widthInSlots);
+                int baseH = Mathf.Max(1, slot.item.heightInSlots);
+
+                rotated = slot.rotated;
+
+                // РµСЃР»Рё РїРѕРІРµСЂРЅСѓС‚ вЂ“ С€РёСЂРёРЅР°/РІС‹СЃРѕС‚Р° РјРµРЅСЏСЋС‚СЃСЏ РјРµСЃС‚Р°РјРё
+                wSlots = rotated ? baseH : baseW;
+                hSlots = rotated ? baseW : baseH;
+            }
+
+            // РџСЂРёРІСЏР·РєР° РёРєРѕРЅРєРё Рє Р»РµРІРѕРјСѓ РІРµСЂС…РЅРµРјСѓ СѓРіР»Сѓ РєРѕСЂРЅРµРІРѕРіРѕ СЃР»РѕС‚Р°
+            iconRect.anchorMin = new Vector2(0f, 1f);
+            iconRect.anchorMax = new Vector2(0f, 1f);
+            iconRect.pivot = new Vector2(0f, 1f);
+            iconRect.anchoredPosition = Vector2.zero;
+
+            // Р Р°Р·РјРµСЂ РІ СЃР»РѕС‚Р°С… (w Г— h)
+            iconRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, cellSize.x * wSlots);
+            iconRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, cellSize.y * hSlots);
+
+            // РџРѕРІРѕСЂРѕС‚ СЃРїСЂР°Р№С‚Р° (90В°), С‡С‚РѕР±С‹ РїСЂСЏРјРѕСѓРіРѕР»СЊРЅР°СЏ РєР°СЂС‚РёРЅРєР° РЅРµ СЂР°СЃС‚СЏРіРёРІР°Р»Р°СЃСЊ, Р° РёРјРµРЅРЅРѕ РєСЂСѓС‚РёР»Р°СЃСЊ
+            iconRect.localEulerAngles = rotated ? new Vector3(0f, 0f, 90f) : Vector3.zero;
         }
 
         if (quantityText != null)
         {
-            if (slot.item.isStackable && slot.quantity > 1)
+            if (slot.item != null && slot.item.isStackable && slot.quantity > 1)
                 quantityText.text = slot.quantity.ToString();
             else
                 quantityText.text = "";
@@ -106,6 +148,7 @@ public class InventorySlotUI : MonoBehaviour,
         if (backgroundImage != null)
             backgroundImage.color = isSelected ? selectedColor : normalColor;
     }
+
 
     public void SetSelected(bool selected)
     {
@@ -131,29 +174,31 @@ public class InventorySlotUI : MonoBehaviour,
         }
     }
 
-    // ---------- Drag & Drop (пока только для одноклеточных) ----------
+    // ---------- DRAG & DROP ----------
 
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (currentSlot == null || currentSlot.IsEmpty()) return;
         if (eventData.button != PointerEventData.InputButton.Left) return;
 
-        // Для многоклеточных — перетаскивать можно ТОЛЬКО за корневой слот
-        if (currentSlot.isPartOfComposite && !currentSlot.isRoot)
-        {
-            Debug.Log("Перетаскивать многоклеточный предмет можно только за верхний левый слот");
-            return;
-        }
-
         draggedSlot = this;
 
-        // Создаём визуальную иконку для перетаскивания
+        // РЎРѕР·РґР°С‘Рј РІРёР·СѓР°Р»СЊРЅСѓСЋ РёРєРѕРЅРєСѓ РґР»СЏ РїРµСЂРµС‚Р°СЃРєРёРІР°РЅРёСЏ
         draggedIcon = new GameObject("DraggedIcon");
         draggedIcon.transform.SetParent(transform.root);
         draggedIcon.transform.SetAsLastSibling();
 
         Image dragImage = draggedIcon.AddComponent<Image>();
-        dragImage.sprite = itemIcon != null ? itemIcon.sprite : null;
+
+        // Р‘РµСЂС‘Рј РёРєРѕРЅРєСѓ РЅР°РїСЂСЏРјСѓСЋ РёР· РїСЂРµРґРјРµС‚Р°,
+        // С‡С‚РѕР±С‹ РґР°Р¶Рµ РїСЂРё С…РІР°С‚Р°РЅРёРё "С…РІРѕСЃС‚Р°" РјРЅРѕРіРѕРєР»РµС‚РѕС‡РЅРѕРіРѕ РїСЂРµРґРјРµС‚Р° РёРєРѕРЅРєР° Р±С‹Р»Р°.
+        Sprite sprite = null;
+        if (currentSlot != null && currentSlot.item != null)
+            sprite = currentSlot.item.icon;
+        else if (itemIcon != null)
+            sprite = itemIcon.sprite;
+
+        dragImage.sprite = sprite;
         dragImage.raycastTarget = false;
 
         RectTransform dragRect = draggedIcon.GetComponent<RectTransform>();
@@ -170,11 +215,17 @@ public class InventorySlotUI : MonoBehaviour,
             var c = quantityText.color;
             c.a = 0.3f;
             quantityText.color = c;
+        }    // РЎР±СЂР°СЃС‹РІР°РµРј РІС‹РґРµР»РµРЅРёРµ, С‡С‚РѕР±С‹ СЃС‚Р°СЂРѕРµ РјРµСЃС‚Рѕ РЅРµ СЃРІРµС‚РёР»РѕСЃСЊ СЃРёРЅРёРј
+        if (inventory != null)
+        {
+            inventory.SelectSlot(-1);
         }
-    }
+    
 
 
-    public void OnDrag(PointerEventData eventData)
+}
+
+public void OnDrag(PointerEventData eventData)
     {
         if (draggedSlot != this || draggedIcon == null) return;
         draggedIcon.transform.position = eventData.position;
@@ -185,7 +236,7 @@ public class InventorySlotUI : MonoBehaviour,
         if (draggedSlot != this) return;
 
         if (draggedIcon != null)
-            Object.Destroy(draggedIcon);
+            Destroy(draggedIcon);
 
         draggedIcon = null;
         draggedSlot = null;
@@ -216,8 +267,10 @@ public class InventorySlotUI : MonoBehaviour,
         if (draggedSlot == null || draggedSlot == this) return;
         if (inventory == null) return;
 
-        // Теперь ВСЁ перетаскивание идёт через MoveItem
+        // Р’РЎР• РїРµСЂРµРјРµС‰РµРЅРёСЏ вЂ” С‡РµСЂРµР· MoveItem.
+        // InventorySystem СЃР°Рј СЂР°Р·Р±РµСЂС‘С‚СЃСЏ:
+        // - 1Г—1 в†’ swap/merge
+        // - РјРЅРѕРіРѕРєР»РµС‚РѕС‡РЅС‹Р№ в†’ РїРµСЂРµРЅРѕСЃ РїСЂСЏРјРѕСѓРіРѕР»СЊРЅРёРєР°, РµСЃР»Рё РµСЃС‚СЊ РјРµСЃС‚Рѕ.
         inventory.MoveItem(draggedSlot.slotIndex, slotIndex);
     }
-
 }

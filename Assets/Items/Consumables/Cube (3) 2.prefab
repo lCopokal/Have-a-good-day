@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 7274137535035233135}
   - component: {fileID: 5873557996465919911}
   m_Layer: 8
-  m_Name: Cube (3)
+  m_Name: Cube (3) 2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -149,5 +149,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7ff3809666d47c741af2fbd7928f9165, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  itemData: {fileID: 11400000, guid: 848891840afa975498d811d6525caeed, type: 2}
+  itemData: {fileID: 11400000, guid: 07cd5127858708a4996d4004f1624844, type: 2}
   quantity: 1
