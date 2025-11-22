@@ -769,7 +769,6 @@ GameObject:
   - component: {fileID: 279522415}
   - component: {fileID: 279522414}
   - component: {fileID: 279522413}
-  - component: {fileID: 279522416}
   - component: {fileID: 279522417}
   - component: {fileID: 279522418}
   - component: {fileID: 279522419}
@@ -846,25 +845,6 @@ Transform:
   - {fileID: 2109410939}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &279522416
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 279522412}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4b963193ecc6c2d46958871e2995dbf2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  interactionDistance: 3
-  interactableLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  interactionPromptUI: {fileID: 407961906}
-  promptText: {fileID: 2030990955}
-  chestPickupHoldTime: 1
 --- !u!114 &279522417
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1890,8 +1870,8 @@ MonoBehaviour:
   canBePickedUp: 1
   chestItemData: {fileID: 0}
   startingItems:
-  - item: {fileID: 11400000, guid: a69309b45051ede40b82c7ef73549ba8, type: 2}
-    quantity: 3
+  - {item: {fileID: 11400000, guid: a69309b45051ede40b82c7ef73549ba8, type: 2}, quantity: 3}
+  slots: []
 --- !u!4 &675025109
 Transform:
   m_ObjectHideFlags: 0
@@ -3274,11 +3254,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1242454266058977266, guid: 366d5765f07531c4daf5ba47071d2512, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -963.372
+      value: -963.36
       objectReference: {fileID: 0}
     - target: {fileID: 1242454266058977266, guid: 366d5765f07531c4daf5ba47071d2512, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -78.581
+      value: -78.58
       objectReference: {fileID: 0}
     - target: {fileID: 1242454266058977266, guid: 366d5765f07531c4daf5ba47071d2512, type: 3}
       propertyPath: m_LocalPosition.z

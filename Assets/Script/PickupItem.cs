@@ -3,119 +3,122 @@ using UnityEngine;
 public class PickupItem : MonoBehaviour, IInteractable
 {
     [Header("Item Data")]
-    [SerializeField] private ItemData itemData; // ������ �� ScriptableObject
-    [SerializeField] private int quantity = 1; // ���������� ���������
+    [SerializeField] private ItemData itemData; // ScriptableObject с данными предмета
+    [SerializeField] private int quantity = 1;   // Количество предметов
 
     private Rigidbody rb;
     private Collider itemCollider;
-    private bool isPickedUp = false;
+    private bool isPickedUp = false; // здесь: "находится в руках" (для ItemPickupSystem)
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
         itemCollider = GetComponent<Collider>();
-
-        // ���� ��� Rigidbody - ���������
-        if (rb == null)
-        {
-            rb = gameObject.AddComponent<Rigidbody>();
-        }
     }
+
+    // ---------- IInteractable (для InteractionSystem) ----------
 
     public string GetInteractPrompt()
     {
-        if (itemData != null)
-        {
-            return $"[E] ��������� {itemData.itemName} | [���] ����� � ����";
-        }
-        return "[E] ��������� | [���] ����� � ����";
+        if (itemData == null)
+            return "E - подобрать (нет ItemData)";
+
+        if (quantity > 1)
+            return $"E - подобрать {itemData.itemName} x{quantity}";
+        else
+            return $"E - подобрать {itemData.itemName}";
     }
 
+    /// <summary>
+    /// Взаимодействие через InteractionSystem: сразу пытаемся положить в инвентарь.
+    /// </summary>
     public void Interact()
     {
-        // ���������� �������� ��������������
-        // ��� ������ ����� � ItemPickupSystem
+        TryPickupToInventory();
     }
 
+    // ---------- ЛОГИКА «СРАЗУ В ИНВЕНТАРЬ» ----------
+
+    /// <summary>
+    /// Подобрать предмет и положить в инвентарь (быстрый подбор, без "в руках").
+    /// </summary>
+    private void TryPickupToInventory()
+    {
+        if (itemData == null)
+        {
+            Debug.LogWarning($"PickupItem на объекте {name}: не назначен ItemData");
+            return;
+        }
+
+        InventorySystem inventory = FindPlayerInventory();
+        if (inventory == null)
+        {
+            Debug.LogWarning("PickupItem: не найден InventorySystem в сцене!");
+            return;
+        }
+
+        int addQuantity = Mathf.Max(1, quantity);
+        bool added = inventory.AddItem(itemData, addQuantity);
+
+        if (added)
+        {
+            Debug.Log($"Подобран предмет: {itemData.itemName} x{addQuantity}");
+            Destroy(gameObject);
+        }
+        else
+        {
+            Debug.Log("Инвентарь заполнен — предмет не подобран");
+        }
+    }
+
+    // ---------- Методы для ItemPickupSystem ----------
+
+    /// <summary>
+    /// Старый интерфейс: взять предмет "в руки" (НЕ в инвентарь).
+    /// ItemPickupSystem вызывает это, когда начинает удерживать объект перед камерой.
+    /// </summary>
     public void OnPickup()
     {
         isPickedUp = true;
 
-        // �������� ������ ���� ������� ��� ������ � ��� ��������� �����
-        CancelInvoke(nameof(MakeStatic));
+        // отключаем физику и столкновения, чтобы не дергался
+        if (rb != null)
+        {
+            rb.isKinematic = true;
+            rb.detectCollisions = false;
+        }
 
-        // ��������� ������
-        rb.isKinematic = true;
-        rb.useGravity = false;
-
-        // ��������� ��������� ����� �� �����
-        itemCollider.enabled = false;
+        if (itemCollider != null)
+            itemCollider.enabled = false;
     }
 
+    /// <summary>
+    /// Старый интерфейс: отпустить предмет обратно в мир.
+    /// ItemPickupSystem вызывает это, когда мы бросаем удерживаемый предмет.
+    /// </summary>
     public void OnDrop()
     {
         isPickedUp = false;
 
-        // �������� ������ �������
-        rb.isKinematic = false;
-        rb.useGravity = true;
-
-        // �������� ���������
-        itemCollider.enabled = true;
-
-        // ��������� ��������� ������� �����
-        Camera playerCamera = Camera.main;
-        if (playerCamera == null)
+        if (rb != null)
         {
-            playerCamera = FindObjectOfType<Camera>();
+            rb.isKinematic = false;
+            rb.detectCollisions = true;
         }
 
-        if (playerCamera != null)
-        {
-            rb.AddForce(playerCamera.transform.forward * 2f, ForceMode.Impulse);
-        }
-
-        // ������ ������� ��������� ����� 2 ������� ����� ������
-        Invoke(nameof(MakeStatic), 2f);
+        if (itemCollider != null)
+            itemCollider.enabled = true;
     }
 
-    void MakeStatic()
-    {
-        if (!isPickedUp && rb != null) // ������ ���� ������� �� �������� �����
-        {
-            // ��������� ��� ������� ����� �� ���������
-            if (rb.linearVelocity.magnitude < 0.1f)
-            {
-                rb.isKinematic = true;
-                rb.useGravity = false;
-            }
-            else
-            {
-                // ���� ��� ��������� - �������� �����
-                Invoke(nameof(MakeStatic), 0.5f);
-            }
-        }
-    }
-
-    void OnCollisionEnter(Collision collision)
-    {
-        // �������� ������ ���� ������� ���� ������
-        if (!isPickedUp)
-        {
-            CancelInvoke(nameof(MakeStatic));
-            Invoke(nameof(MakeStatic), 1f); // ��� 1 ��� ����� ������� �����
-        }
-    }
-
+    /// <summary>
+    /// Имя предмета для подсказок (используется в ItemPickupSystem).
+    /// </summary>
     public string GetItemName()
     {
-        return itemData != null ? itemData.itemName : "����������� �������";
+        return itemData != null ? itemData.itemName : gameObject.name;
     }
 
-    public string GetDescription()
-    {
-        return itemData != null ? itemData.description : "";
-    }
+    // Эти методы уже ожидает твой ItemPickupSystem:
 
     public ItemData GetItemData()
     {
@@ -130,5 +133,16 @@ public class PickupItem : MonoBehaviour, IInteractable
     public bool IsPickedUp()
     {
         return isPickedUp;
+    }
+
+    // ---------- Вспомогательное ----------
+
+    private InventorySystem FindPlayerInventory()
+    {
+#if UNITY_6000_0_OR_NEWER
+        return Object.FindFirstObjectByType<InventorySystem>();
+#else
+        return FindObjectOfType<InventorySystem>();
+#endif
     }
 }

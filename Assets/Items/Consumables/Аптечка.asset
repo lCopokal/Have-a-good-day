@@ -20,6 +20,8 @@ MonoBehaviour:
   isStackable: 1
   maxStackSize: 99
   weight: 0.5
+  widthInSlots: 1
+  heightInSlots: 2
   healthRestore: 25
   hungerRestore: 0
   thirstRestore: 0
